@@ -46,9 +46,11 @@ while dead == False:
     if inhabitant is not None:
         inhabitant.describe()
 
-    item = current_room.get_item()
-    if item is not None:
-        item.describe()
+    items = current_room.get_items()
+    if items is not None:
+        print("There is items in this room: " + ", ".join((item.name for item in items)) + ".")
+        for item in items:
+            item.describe()
 
     command = input("> ")
 
@@ -85,9 +87,10 @@ while dead == False:
         else:
             print("There is no one here to fight with")
     elif command == "take":
-        if item is not None:
-            print("You put the " + item.get_name() + " in your backpack")
-            backpack.append(item.get_name())
+        if items is not None:
+            for item in items:
+                print("You put the " + item.get_name() + " in your backpack")
+                backpack.append(item.get_name())
             current_room.set_item(None)
         else:
             print("There's nothing here to take!")
