@@ -62,24 +62,17 @@ class Room(SetDescrMixin):
             return self
 
 
-class Enemy:
-    """Enemy object model"""
-    defeated = 0
-
+class Character:
+    """Character object model"""
     def __init__(self, name, description):
-        """Initialisation method"""
+        """Initialisation function"""
         self.name = name
         self.description = description
         self.replica = "No replica yet."
-        self.weaknesses = ()
 
     def set_conversation(self, replica):
         """Sets replica to the character"""
         self.replica = replica
-
-    def set_weakness(self, *weaknesses):
-        """Sets weaknesses to the character"""
-        self.weaknesses = tuple(weaknesses)
 
     def describe(self):
         """Returns the description of the character"""
@@ -88,6 +81,20 @@ class Enemy:
     def talk(self):
         """Returns the replica of the character"""
         print(self.replica)
+
+
+class Enemy(Character):
+    """Enemy object model"""
+    defeated = 0
+
+    def __init__(self, name, description):
+        """Initialisation method"""
+        super().__init__(name, description)
+        self.weaknesses = ()
+
+    def set_weakness(self, *weaknesses):
+        """Sets weaknesses to the character"""
+        self.weaknesses = tuple(weaknesses)
 
     def fight(self, weapon):
         """Checks, whether enemy is vulnerable to the given weapon"""
@@ -99,6 +106,10 @@ class Enemy:
     def get_defeated(self):
         """Returns the value of slaughtered enemies"""
         return Enemy.defeated
+
+
+class Friend(Character):
+    pass
 
 
 class Item(SetDescrMixin):
