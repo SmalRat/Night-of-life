@@ -2,7 +2,7 @@ import game
 
 rod = game.Rod()
 duct_tape = game.DuctTape()
-items = [rod, duct_tape]
+tool_types = [game.Rod, game.DuctTape]
 tools_amount_num = 2
 
 fixed_items = []
@@ -41,6 +41,10 @@ if __name__ == "__main__":
 
     game_length_dictionary = {1: 180, 2: 360, 3: 540}
     game_rooms_amount_dictionary = {1: 2, 2: 4, 3: 5}
-    game_generator = game.GameGenerator(game_rooms_amount_dictionary[game_length], items, tools_amount_num)
+    game_generator = game.GameGenerator(game_rooms_amount_dictionary[game_length],
+                                        tool_types, tools_amount_num, game_length)
+    game_generator.generate_tools()
     for i in game_generator.rooms:
         i.get_details()
+        print(i.get_items())
+

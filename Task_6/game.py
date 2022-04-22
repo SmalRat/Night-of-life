@@ -41,9 +41,23 @@ class Room(SetDescrMixin):
         """Sets items to the current room"""
         for item in items:
             if item:
-                self.items = tuple(items)
+                self.items = list(items)
                 return
         self.items = None
+
+    def add_item(self, items):
+        if self.items:
+            try:
+                check_iterator = iter(items)
+                for item in items:
+                    self.items.append(item)
+            except TypeError:
+                self.items.append(items)
+        else:
+            try:
+                self.items = list(items)
+            except TypeError:
+                self.items = [items]
 
     def get_details(self):
         """Gets details of the current room"""
@@ -159,6 +173,7 @@ class Item(SetDescrMixin):
 
 class DuctTape(Item):
     """Duct_tape object model"""
+    generation_amount = 2
     def __init__(self):
         """Initialisation function"""
         super().__init__("Скотч")
@@ -172,6 +187,7 @@ class DuctTape(Item):
 
 class Rod(Item):
     """Rod object model"""
+    generation_amount = 1
     def __init__(self):
         """Initialisation function"""
         super().__init__("Стержень")
@@ -180,14 +196,15 @@ class Rod(Item):
 
 class GameGenerator:
     """Game generator - generates rooms, items in rooms and characters"""
-    def __init__(self, rooms_num, tools, tools_amount_num):
+    def __init__(self, rooms_num, tool_types, tools_amount_num, game_length):
         """Initialisation function"""
         self.rooms_num = rooms_num
         self.tools_amount_num = tools_amount_num
         self.rooms = []
         self.printers = []
-        self.tools = tools
+        self.tool_types = tool_types
         self.generate_rooms()
+        self.game_length = game_length
 
     def generate_rooms(self):
         """Randomly generates needed amount of rooms and links them in one tree"""
@@ -232,6 +249,17 @@ class GameGenerator:
                 return printer
             else:
                 pass
+
+    def generate_tools(self):
+        """Generates tools and randomly puts them in rooms"""
+        tools = []
+        for tool_type in self.tool_types:
+            for counter in range(tool_type.generation_amount*self.game_length):
+                tools.append(tool_type())
+        for tool in tools:
+            random.choice(self.rooms).add_item(tool)
+
+
 
 
 class GameCycle:
