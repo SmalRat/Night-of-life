@@ -150,9 +150,58 @@ class Friend(Character):
 
 
 class Printer(Enemy):
+    parts_names = {1: "Поверхня",
+                   2: "Калібрація",
+                   3: "Екструдер",
+                   4: "Сопло",
+                   5: "Ремінь",
+                   6: "Подача пластику"}
+    temper_names = {1: "капризний", 2: "жорстокий", 3: "впертий", 4: "мазохіст", 5: "файний"}
+    temper_descriptions = {1: "часто потребує перекалібровки",
+                           2: "при знятті деталей завжди пошкоджує поверхню",
+                           3: "постійно забивається",
+                           4: "любить чинити собі шкоду",
+                           5: "дуже добре працює(таке буває?)"}
+    temper_work_completion_effects = {1: {1: 0.3, 2: 0.9, 3: 0.2, 4: 0.1, 5: 0.01, 6: 0.1},
+                                      2: {1: 1, 2: 0.3, 3: 0.7, 4: 0.1, 5: 0.01, 6: 0.1},
+                                      3: {1: 0.3, 2: 0.2, 3: 0.2, 4: 0.15, 5: 0.01, 6: 0.3},
+                                      4: {1: 0.3, 2: 0.3, 3: 0.5, 4: 0.8, 5: 0.4, 6: 0.15},
+                                      5: {1: 0.2, 2: 0.1, 3: 0.05, 4: 0.01, 5: 0.001, 6: 0.01}}
+
     def __init__(self, name):
+        """Initialisation function"""
         self.name = name
         self.description = "Принтер"
+        self.parts = {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1}
+        for key in self.parts:
+            self.parts[key] -= random.random()/2
+        self.temper = 1
+        self.define_temper()
+        self.set_conversation("Цей принтер " + Printer.temper_names[self.temper]
+                              + " - " + Printer.temper_descriptions[self.temper] + ".")
+
+    def define_temper(self):
+        """Defines temper(tendencies) of this printer"""
+        random_value = 10 * random.random()
+        if 0 <= random_value <= 2:
+            self.temper = 1
+        elif 2 < random_value <= 6:
+            self.temper = 2
+        elif 6 < random_value <= 8:
+            self.temper = 3
+        elif 8 < random_value <= 9:
+            self.temper = 4
+        elif 9 < random_value <= 10:
+            self.temper = 5
+
+    def work_completion(self):
+        """Applies consequences of work completion"""
+        for part in Printer.temper_work_completion_effects[self.temper]:
+            self.parts[part] -= Printer.temper_work_completion_effects[self.temper][part]
+
+    def cycle_work_effects(self):
+        for part in Printer.temper_work_completion_effects[self.temper]:
+            self.parts[part] -= Printer.temper_work_completion_effects[self.temper][part]*random.random()/100
 
 
 class Item(SetDescrMixin):
@@ -171,16 +220,7 @@ class Item(SetDescrMixin):
         return self.name
 
 
-class DuctTape(Item):
-    """Duct_tape object model"""
-    generation_amount = 2
-
-    def __init__(self):
-        """Initialisation function"""
-        super().__init__("Скотч")
-        self.amount = 1
-        self.description = "Використовується для відновлення цілісності покриття платформи"
-
+class ConsumableMixin:
     def describe(self):
         """Returns the description of the item"""
         print(self.name + ": " + self.description + ". " + "Стан: " + str(self.amount*100) + "%.")
@@ -194,6 +234,28 @@ class Rod(Item):
         """Initialisation function"""
         super().__init__("Стержень")
         self.description = "Використовується для чищення забитого екструдеру"
+
+
+class DuctTape(Item, ConsumableMixin):
+    """Duct_tape object model"""
+    generation_amount = 2
+
+    def __init__(self):
+        """Initialisation function"""
+        super().__init__("Скотч")
+        self.amount = 1
+        self.description = "Використовується для відновлення цілісності покриття платформи"
+
+
+class Paper(Item, ConsumableMixin):
+    """Paper object model"""
+    generation_amount = 1
+
+    def __init__(self):
+        """Initialisation function"""
+        super().__init__("Папір А4")
+        self.amount = 1
+        self.description = "Використовується для калібровки"
 
 
 class GameGenerator:
@@ -273,9 +335,10 @@ class GameCycle:
         self.backpack = backpack
         self.rooms_list = rooms_list
         self.printers_list = printers_list
+        self.time = 0
 
     def get_answer(self):
-        raw_answer = input("> ")
+        raw_answer = input(">> ")
         answer = raw_answer.split()
         if len(answer) > 0:
             if answer[0] in ("north", "south", "east", "west"):
@@ -286,6 +349,8 @@ class GameCycle:
                 return self.fight, answer
             elif answer[0] == "take":
                 return self.take, answer
+            elif answer[0] == "wait":
+                return self.wait, answer
             else:
                 print("Я не знаю, що означає: " + raw_answer + ".")
 
@@ -362,6 +427,16 @@ class GameCycle:
         else:
             print("Тут немає ніяких предметів!")
 
+    def wait(self, answer):
+        try:
+            time = int(answer[1])
+            self.cycle(time)
+
+        except (TypeError, ValueError):
+            print("Введіть коректне значення (час у хвилинах, ціле значення).")
+        except IndexError:
+            print("Введіть час у хвилинах, протягом якого чекати.")
+
     def action_menu(self):
 
         print("\n")
@@ -384,3 +459,10 @@ class GameCycle:
         answer = self.get_answer()
         if answer:
             answer[0](answer[1])
+
+    def cycle(self, time):
+        for time_count in range(time):
+            for room in self.rooms_list:
+                for printer in room.get_characters():
+                    printer.cycle_work_effects()
+            self.time += 1

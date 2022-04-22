@@ -1,4 +1,5 @@
 import game
+import time
 
 tool_types = [game.Rod, game.DuctTape]
 
@@ -14,13 +15,17 @@ current_room = None
 
 backpack = []
 
-#game_cycle = game.GameCycle(current_room, rooms_list, printers_list, backpack)
 
-"""while True:
-    try:
-        game_cycle.cycle()
-    except game.GameEnd:
-        break"""
+def print_decorator():
+    func = print
+    def new_print(text):
+        func(text)
+        time.sleep(0.1)
+    return new_print
+
+
+print = print_decorator()
+
 
 if __name__ == "__main__":
     print("Вітаю тебе у грі 'Нічна зміна'!")
@@ -46,5 +51,9 @@ if __name__ == "__main__":
                                 game_generator.rooms,
                                 game_generator.printers,
                                 [])
-    while True:
-        game_cycle.action_menu()
+
+    while game_cycle.time < game_length_dictionary[game_length]:
+        try:
+            game_cycle.action_menu()
+        except game.GameEnd:
+            break
