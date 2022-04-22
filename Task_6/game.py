@@ -174,11 +174,12 @@ class Item(SetDescrMixin):
 class DuctTape(Item):
     """Duct_tape object model"""
     generation_amount = 2
+
     def __init__(self):
         """Initialisation function"""
         super().__init__("Скотч")
         self.amount = 1
-        self.description = "Використовується для відновлення цілісності покриття платформи."
+        self.description = "Використовується для відновлення цілісності покриття платформи"
 
     def describe(self):
         """Returns the description of the item"""
@@ -188,23 +189,28 @@ class DuctTape(Item):
 class Rod(Item):
     """Rod object model"""
     generation_amount = 1
+
     def __init__(self):
         """Initialisation function"""
         super().__init__("Стержень")
-        self.description = "Використовується для чищення забитого екструдеру."
+        self.description = "Використовується для чищення забитого екструдеру"
 
 
 class GameGenerator:
     """Game generator - generates rooms, items in rooms and characters"""
-    def __init__(self, rooms_num, tool_types, tools_amount_num, game_length):
+    def __init__(self, rooms_num, tool_types, game_length):
         """Initialisation function"""
         self.rooms_num = rooms_num
-        self.tools_amount_num = tools_amount_num
+        self.tool_types = tool_types
+        self.game_length = game_length
+
         self.rooms = []
         self.printers = []
-        self.tool_types = tool_types
+
         self.generate_rooms()
-        self.game_length = game_length
+        self.generate_tools()
+
+        self.current_room = random.choice(self.rooms)
 
     def generate_rooms(self):
         """Randomly generates needed amount of rooms and links them in one tree"""
@@ -260,8 +266,6 @@ class GameGenerator:
             random.choice(self.rooms).add_item(tool)
 
 
-
-
 class GameCycle:
     """Class with functions usable for game cycle"""
     def __init__(self, current_room, rooms_list, printers_list, backpack):
@@ -269,9 +273,6 @@ class GameCycle:
         self.backpack = backpack
         self.rooms_list = rooms_list
         self.printers_list = printers_list
-
-    def items_distribution(self, items):
-        pass
 
     def get_answer(self):
         raw_answer = input("> ")
