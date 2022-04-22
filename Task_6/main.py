@@ -1,13 +1,12 @@
 import game
 import time
 
-tool_types = [game.Rod, game.DuctTape]
-
 game_length_dictionary = {1: 180, 2: 360, 3: 540}
 game_rooms_amount_dictionary = {1: 2, 2: 4, 3: 5}
 
-fixed_items = []
-not_fixed_items = []
+fixed_items = [game.Rod, game.DuctTape, game.Screwdriver, game.Paper,
+               game.Glue, game.FilamentABS, game.FilamentPLA, game.FilamentPETG]
+not_fixed_items = [game.Nozzle, game.Extruder, game.Belt]
 
 rooms_list = []
 printers_list = []
@@ -45,13 +44,17 @@ if __name__ == "__main__":
             print(e)
 
     game_generator = game.GameGenerator(game_rooms_amount_dictionary[game_length],
-                                        tool_types,
+                                        fixed_items,
+                                        not_fixed_items,
                                         game_length)
     game_cycle = game.GameCycle(game_generator.current_room,
                                 game_generator.rooms,
                                 game_generator.printers,
                                 [])
-
+    print("-" * 100)
+    for room in game_generator.rooms:
+        for printer in room.get_characters():
+            print(printer.work)
     while game_cycle.time < game_length_dictionary[game_length]:
         try:
             game_cycle.action_menu()

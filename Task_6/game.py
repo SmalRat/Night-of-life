@@ -167,6 +167,22 @@ class Printer(Enemy):
                                       3: {1: 0.3, 2: 0.2, 3: 0.2, 4: 0.15, 5: 0.01, 6: 0.3},
                                       4: {1: 0.3, 2: 0.3, 3: 0.5, 4: 0.8, 5: 0.4, 6: 0.15},
                                       5: {1: 0.2, 2: 0.1, 3: 0.05, 4: 0.01, 5: 0.001, 6: 0.01}}
+    works = {1: (20, 3, "small"),
+             2: (55, 6, "small"),
+             3: (100, 12, "small"),
+             4: (190, 24, "small"),
+             5: (30, 1, "medium"),
+             6: (55, 2, "medium"),
+             7: (100, 4, "medium"),
+             8: (195, 8, "medium"),
+             9: (60, 1, "big"),
+             10: (110, 2, "big"),
+             11: (200, 4, "big"),
+             12: (380, 8, "big")}
+    work_statuses = {1: "Empty",
+                     2: "Unfinished work",
+                     3: "Works",
+                     4: "Work complete"}
 
     def __init__(self, name):
         """Initialisation function"""
@@ -175,10 +191,20 @@ class Printer(Enemy):
         self.parts = {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1}
         for key in self.parts:
             self.parts[key] -= random.random()/2
+        self.filament = 1 - random.random()/2
         self.temper = 1
         self.define_temper()
         self.set_conversation("Цей принтер " + Printer.temper_names[self.temper]
                               + " - " + Printer.temper_descriptions[self.temper] + ".")
+        self.work_progress = 0
+        self.status = 1
+        self.work = random.choice([*Printer.works, 0])
+        if self.work > 0:
+            self.status = random.choice([3,4])
+            if self.status == 3:
+                self.work_progress = random.random()*Printer.works[self.work][0]
+            else:
+                self.work_progress = Printer.works[self.work][0]
 
     def define_temper(self):
         """Defines temper(tendencies) of this printer"""
@@ -198,10 +224,24 @@ class Printer(Enemy):
         """Applies consequences of work completion"""
         for part in Printer.temper_work_completion_effects[self.temper]:
             self.parts[part] -= Printer.temper_work_completion_effects[self.temper][part]
+        result = Printer.works[self.work]
+        self.work = 0
+        self.status = 1
+        self.work_progress = 0
+        return result
 
     def cycle_work_effects(self):
-        for part in Printer.temper_work_completion_effects[self.temper]:
-            self.parts[part] -= Printer.temper_work_completion_effects[self.temper][part]*random.random()/100
+        if self.status == 3:
+            for part in Printer.temper_work_completion_effects[self.temper]:
+                self.parts[part] -= Printer.temper_work_completion_effects[self.temper][part]*random.random()/100
+            self.work_progress += 1
+            if self.work_progress >= Printer.works[self.work][0]:
+                self.status = 4
+            else:
+                for part in self.parts:
+                    if self.parts[part] <= 0:
+                        self.status = 2
+                        self.work_progress = 0
 
 
 class Item(SetDescrMixin):
@@ -220,31 +260,77 @@ class Item(SetDescrMixin):
         return self.name
 
 
+class Rod(Item):
+    """Rod object model"""
+    generation_amount = 0.75
+
+    def __init__(self):
+        """Initialisation function"""
+        super().__init__("Стержень")
+        self.description = "Використовується для чищення забитого екструдеру"
+        self.usage_time = 5
+
+
+class Screwdriver(Item):
+    """Screwdriver object model"""
+    generation_amount = 0.50
+
+    def __init__(self):
+        """Initialisation function"""
+        super().__init__("Викрутка")
+        self.description = "Використовується для заміни ременя або ремонту системи подачі пластику"
+        self.usage_time = 10
+
+
+class Nozzle(Item):
+    """Nozzle object model"""
+    generation_amount = 0.30
+
+    def __init__(self):
+        """Initialisation function"""
+        super().__init__("Сопло")
+        self.description = "Нове сопло"
+        self.usage_time = 10
+
+
+class Extruder(Item):
+    """Extruder object model"""
+    generation_amount = 0.20
+
+    def __init__(self):
+        """Initialisation function"""
+        super().__init__("Екструдер")
+        self.description = "Справний екструдер"
+        self.usage_time = 4
+
+
+class Belt(Item):
+    """Belt object model"""
+    generation_amount = 0.20
+
+    def __init__(self):
+        """Initialisation function"""
+        super().__init__("Ремінь")
+        self.description = "Справний привідний ремінь"
+        self.usage_time = 10
+
+
 class ConsumableMixin:
     def describe(self):
         """Returns the description of the item"""
         print(self.name + ": " + self.description + ". " + "Стан: " + str(self.amount*100) + "%.")
 
 
-class Rod(Item):
-    """Rod object model"""
-    generation_amount = 1
-
-    def __init__(self):
-        """Initialisation function"""
-        super().__init__("Стержень")
-        self.description = "Використовується для чищення забитого екструдеру"
-
-
 class DuctTape(Item, ConsumableMixin):
     """Duct_tape object model"""
-    generation_amount = 2
+    generation_amount = 1.5
 
     def __init__(self):
         """Initialisation function"""
         super().__init__("Скотч")
         self.amount = 1
         self.description = "Використовується для відновлення цілісності покриття платформи"
+        self.usage_time = 4
 
 
 class Paper(Item, ConsumableMixin):
@@ -256,15 +342,65 @@ class Paper(Item, ConsumableMixin):
         super().__init__("Папір А4")
         self.amount = 1
         self.description = "Використовується для калібровки"
+        self.usage_time = 7
+
+
+class Glue(Item, ConsumableMixin):
+    """Glue object model"""
+    generation_amount = 1
+
+    def __init__(self):
+        """Initialisation function"""
+        super().__init__("Клей")
+        self.amount = 1
+        self.description = "Використовується для ремонту системи подачі пластику"
+        self.usage_time = 10
+
+
+class FilamentABS(Item, ConsumableMixin):
+    """ABS filament object model"""
+    generation_amount = 2
+
+    def __init__(self):
+        """Initialisation function"""
+        super().__init__("Котушка ABS")
+        self.amount = 1
+        self.description = "Використовується для заміни пластику ABS"
+        self.usage_time = 5
+
+
+class FilamentPLA(Item, ConsumableMixin):
+    """PLA filament object model"""
+    generation_amount = 3
+
+    def __init__(self):
+        """Initialisation function"""
+        super().__init__("Котушка PLA")
+        self.amount = 1
+        self.description = "Використовується для заміни пластику PLA"
+        self.usage_time = 5
+
+
+class FilamentPETG(Item, ConsumableMixin):
+    """PETG filament object model"""
+    generation_amount = 1
+
+    def __init__(self):
+        """Initialisation function"""
+        super().__init__("Котушка PETG")
+        self.amount = 1
+        self.description = "Використовується для заміни пластику PETG"
+        self.usage_time = 5
 
 
 class GameGenerator:
     """Game generator - generates rooms, items in rooms and characters"""
-    def __init__(self, rooms_num, tool_types, game_length):
+    def __init__(self, rooms_num, necessary_tool_types, optional_tool_types, game_length):
         """Initialisation function"""
         self.rooms_num = rooms_num
-        self.tool_types = tool_types
+        self.necessary_tool_types = necessary_tool_types
         self.game_length = game_length
+        self.optional_tool_types = optional_tool_types
 
         self.rooms = []
         self.printers = []
@@ -321,9 +457,14 @@ class GameGenerator:
     def generate_tools(self):
         """Generates tools and randomly puts them in rooms"""
         tools = []
-        for tool_type in self.tool_types:
-            for counter in range(tool_type.generation_amount*self.game_length):
+        for tool_type in self.necessary_tool_types:
+            for counter in range(max(1, int(tool_type.generation_amount*self.game_length))):
                 tools.append(tool_type())
+        for tool_type in self.optional_tool_types:
+            random_value = random.random()
+            if random_value < tool_type.generation_amount*self.game_length:
+                for counter in range(max(1, int(tool_type.generation_amount*self.game_length))):
+                    tools.append(tool_type())
         for tool in tools:
             random.choice(self.rooms).add_item(tool)
 
@@ -331,6 +472,7 @@ class GameGenerator:
 class GameCycle:
     """Class with functions usable for game cycle"""
     def __init__(self, current_room, rooms_list, printers_list, backpack):
+        """Initialisation function"""
         self.current_room = current_room
         self.backpack = backpack
         self.rooms_list = rooms_list
@@ -338,6 +480,7 @@ class GameCycle:
         self.time = 0
 
     def get_answer(self):
+        """Gets an answer from the player"""
         raw_answer = input(">> ")
         answer = raw_answer.split()
         if len(answer) > 0:
@@ -358,9 +501,11 @@ class GameCycle:
             return None
 
     def move(self, direction):
+        """Adds ability to move from one room to another"""
         self.current_room = self.current_room.move(direction)
 
     def talk(self, answer):
+        """Adds ability to talk with characters"""
         if len(answer) == 1:
             if len(self.current_room.get_characters()) == 1:
                 self.current_room.get_characters()[0].talk()
@@ -378,6 +523,7 @@ class GameCycle:
             print("Неправильний формат відповіді!")
 
     def fight(self, answer):
+        """Implements 'fight'"""
         def fight_additional(inhabitant):
             print("Чим ви будете битися?")
             fight_with = input()
@@ -418,6 +564,7 @@ class GameCycle:
             print("Неправильний формат відповіді!")
 
     def take(self, answer):
+        """Implements ability to take items"""
         items = self.current_room.get_items()
         if items is not None:
             for item in items:
@@ -428,6 +575,7 @@ class GameCycle:
             print("Тут немає ніяких предметів!")
 
     def wait(self, answer):
+        """Allows to wait for some time"""
         try:
             time = int(answer[1])
             self.cycle(time)
@@ -438,7 +586,7 @@ class GameCycle:
             print("Введіть час у хвилинах, протягом якого чекати.")
 
     def action_menu(self):
-
+        """Implements action choice menu"""
         print("\n")
         self.current_room.get_details()
 
@@ -461,6 +609,7 @@ class GameCycle:
             answer[0](answer[1])
 
     def cycle(self, time):
+        """Implements time and changes it brings in the game"""
         for time_count in range(time):
             for room in self.rooms_list:
                 for printer in room.get_characters():
