@@ -1,4 +1,5 @@
 """Module with game classes"""
+import random
 
 
 class FriendlyFire(Exception):
@@ -46,11 +47,13 @@ class Room(SetDescrMixin):
 
     def get_details(self):
         """Gets details of the current room"""
+        print("-" * 100)
         print("You're currently at: " + str(self.name) + ". " + self.description + "\n")
         print("Adjoining rooms: " + ", ".join(("{}: {}".format(key, self.neighbours[key].name)
                                                if self.neighbours[key]
                                                else "{}: No room".format(key)
                                                for key in self.neighbours)) + "\n")
+        print("-"*100)
 
     def get_characters(self):
         """Gets the characters of the current room"""
@@ -132,6 +135,12 @@ class Friend(Character):
         raise FriendlyFire("You hit a friend!")
 
 
+class Printer(Enemy):
+    def __init__(self, name):
+        self.name = name
+        self.description = "Принтер"
+
+
 class Item(SetDescrMixin):
     """Item object model"""
     def __init__(self, name):
@@ -148,11 +157,93 @@ class Item(SetDescrMixin):
         return self.name
 
 
+class DuctTape(Item):
+    """Duct_tape object model"""
+    def __init__(self):
+        """Initialisation function"""
+        super().__init__("Скотч")
+        self.amount = 1
+        self.description = "Використовується для відновлення цілісності покриття платформи."
+
+    def describe(self):
+        """Returns the description of the item"""
+        print(self.name + ": " + self.description + ". " + "Стан: " + str(self.amount*100) + "%.")
+
+
+class Rod(Item):
+    """Rod object model"""
+    def __init__(self):
+        """Initialisation function"""
+        super().__init__("Стержень")
+        self.description = "Використовується для чищення забитого екструдеру."
+
+
+class GameGenerator:
+    """Game generator - generates rooms, items in rooms and characters"""
+    def __init__(self, rooms_num, tools, tools_amount_num):
+        """Initialisation function"""
+        self.rooms_num = rooms_num
+        self.tools_amount_num = tools_amount_num
+        self.rooms = []
+        self.printers = []
+        self.tools = tools
+        self.generate_rooms()
+
+    def generate_rooms(self):
+        """Randomly generates needed amount of rooms and links them in one tree"""
+        rooms = []
+        for i in range(self.rooms_num):
+            while True:
+                name = str(random.randint(1, 99)).zfill(3)
+                if name not in rooms:
+                    self.rooms.append(self.generate_room(name))
+                    rooms.append(name)
+                    break
+                else:
+                    pass
+        main_room = random.choice(self.rooms)
+        linked_rooms = [main_room]
+        for room in self.rooms:
+            if not room in linked_rooms:
+                while True:
+                    linking_room = random.choice(linked_rooms)
+                    linking_side = random.choice(("west", "east", "north", "south"))
+                    if not linking_room.neighbours[linking_side]:
+                        room.link_room(linking_room, Room.pairs[linking_side])
+                        linked_rooms.append(room)
+                        break
+
+    def generate_room(self, room_name):
+        """Generates a room with a random amount of printers"""
+        room = Room(room_name)
+        printers = []
+        printers_num = random.randint(2, 8)
+        for i in range(printers_num):
+            printers.append(self.generate_printer())
+        room.set_characters(printers)
+        return room
+
+    def generate_printer(self):
+        """Generates printer with a random name"""
+        while True:
+            name = str(random.randint(1, 99))
+            if name not in [printer.name for printer in self.printers]:
+                printer = Printer(name)
+                return printer
+            else:
+                pass
+
+
 class GameCycle:
     """Class with functions usable for game cycle"""
-    def __init__(self, current_room, backpack):
+    def __init__(self, current_room, rooms_list, printers_list, backpack):
         self.current_room = current_room
         self.backpack = backpack
+        self.rooms_list = rooms_list
+        self.printers_list = printers_list
+
+    def items_distribution(self, items):
+        pass
 
     def get_answer(self):
         raw_answer = input("> ")
@@ -242,7 +333,7 @@ class GameCycle:
         else:
             print("Тут немає ніяких предметів!")
 
-    def cycle(self):
+    def action_menu(self):
 
         print("\n")
         self.current_room.get_details()
