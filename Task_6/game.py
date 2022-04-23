@@ -156,7 +156,7 @@ class Printer(Enemy):
                    4: "Сопло",
                    5: "Ремінь",
                    6: "Подача пластику"}
-    temper_names = {1: "капризний", 2: "жорстокий", 3: "впертий", 4: "мазохіст", 5: "файний"}
+    temper_names = {1: "Капризний", 2: "Жорстокий", 3: "Впертий", 4: "Мазохіст", 5: "Файний"}
     temper_descriptions = {1: "часто потребує перекалібровки",
                            2: "при знятті деталей завжди пошкоджує поверхню",
                            3: "постійно забивається",
@@ -167,22 +167,22 @@ class Printer(Enemy):
                                       3: {1: 0.3, 2: 0.2, 3: 0.2, 4: 0.15, 5: 0.01, 6: 0.3},
                                       4: {1: 0.3, 2: 0.3, 3: 0.5, 4: 0.8, 5: 0.4, 6: 0.15},
                                       5: {1: 0.2, 2: 0.1, 3: 0.05, 4: 0.01, 5: 0.001, 6: 0.01}}
-    works = {1: (20, 3, "small"),
-             2: (55, 6, "small"),
-             3: (100, 12, "small"),
-             4: (190, 24, "small"),
-             5: (30, 1, "medium"),
-             6: (55, 2, "medium"),
-             7: (100, 4, "medium"),
-             8: (195, 8, "medium"),
-             9: (60, 1, "big"),
-             10: (110, 2, "big"),
-             11: (200, 4, "big"),
-             12: (380, 8, "big")}
-    work_statuses = {1: "Empty",
-                     2: "Unfinished work",
-                     3: "Works",
-                     4: "Work complete"}
+    works = {1: (20, 3, "малі"),
+             2: (55, 6, "малі"),
+             3: (100, 12, "малі"),
+             4: (190, 24, "малі"),
+             5: (30, 1, "середні"),
+             6: (55, 2, "середні"),
+             7: (100, 4, "середні"),
+             8: (195, 8, "середні"),
+             9: (60, 1, "великі"),
+             10: (110, 2, "великі"),
+             11: (200, 4, "великі"),
+             12: (380, 8, "великі")}
+    work_statuses = {1: "Порожній",
+                     2: "Всередині незавершена(зіпсута) робота",
+                     3: "Працює",
+                     4: "Всередині завершена робота"}
 
     def __init__(self, name):
         """Initialisation function"""
@@ -202,7 +202,7 @@ class Printer(Enemy):
         if self.work > 0:
             self.status = random.choice([3,4])
             if self.status == 3:
-                self.work_progress = random.random()*Printer.works[self.work][0]
+                self.work_progress = int(random.random()*Printer.works[self.work][0])
             else:
                 self.work_progress = Printer.works[self.work][0]
 
@@ -231,6 +231,7 @@ class Printer(Enemy):
         return result
 
     def cycle_work_effects(self):
+        """Implements time effect on printers work"""
         if self.status == 3:
             for part in Printer.temper_work_completion_effects[self.temper]:
                 self.parts[part] -= Printer.temper_work_completion_effects[self.temper][part]*random.random()/100
@@ -242,6 +243,127 @@ class Printer(Enemy):
                     if self.parts[part] <= 0:
                         self.status = 2
                         self.work_progress = 0
+
+    def interact(self, game_object):
+        """Adds ability to interact with printers"""
+        answer_map = {1: self.info, 2: self.retrieve, 3: self.start, 4: self.repair}
+        while True:
+            try:
+                print("Як ви хочете взаємодіяти із принтером? \n \
+1 - Стан принтера \n 2 - Вийняти виріб \n 3 - Запустити новий друк \n 4 - Ремонтувати \n 5 - Облишити принтер")
+                answer = int(input(">> "))
+                if answer in (1,2,3,4):
+                    answer_map[answer](game_object)
+                elif answer == 5:
+                    break
+                else:
+                    raise TypeError
+            except (ValueError, TypeError):
+                print("Введіть прийнятну відповідь!")
+
+    def parts_status(self):
+        information = "\n\n Стан деталей: \n"
+        for part in self.parts:
+            information += Printer.parts_names[part] + ": "
+            if self.parts[part] > 0.9:
+                information += "дуже добрий \n"
+            elif self.parts[part] > 0.65:
+                information += "добрий \n"
+            elif self.parts[part] > 0.4:
+                information += "задовільний \n"
+            elif self.parts[part] > 0.25:
+                information += "незадовільний \n"
+            elif self.parts[part] > 0.15:
+                information += "поганий \n"
+            elif self.parts[part] > 0:
+                information += "дуже поганий \n"
+            else:
+                information += "зламаний \n"
+        return information
+
+    def info(self, game_object):
+        """Grants info about printer"""
+        information = "Принтер " + self.name + ". " + self.temper_names[self.temper]\
+                      + " - " + self.temper_descriptions[self.temper] + ". \n"
+        if self.status == 1:
+            information += Printer.work_statuses[self.status] + "."
+        else:
+            information += Printer.work_statuses[self.status] + " - " + str(Printer.works[self.work][2])\
+                           + " деталі " + str(Printer.works[self.work][1]) + " штук. "
+            information += "Залишилось часу: " + str(Printer.works[self.work][0] - self.work_progress)
+        information += self.parts_status()
+        print(information)
+
+    def retrieve(self, game_object):
+        """Implements the possibility to retrieve works from printers"""
+        if self.status == 4:
+            print("Ви вийняли виріб : " + str(Printer.works[self.work][2])\
+                           + " деталі " + str(Printer.works[self.work][1]) + " штук. ")
+            work = self.work_completion()
+            game_object.results[work[2]] += work[1]
+            game_object.wait([None, 5])
+        elif self.status == 3:
+            print("Принтер все ще працює, ви не можете дістати виріб! \
+Хочете завершити роботу і дістати неготову деталь? Так/Ні")
+            answer = input(">> ")
+            if answer in ("Так", "так"):
+                self.work_completion()
+                print("Ви витягли неготові деталі із принтера.")
+                game_object.wait([None, 5])
+        elif self.status == 2:
+            self.work_completion()
+            print("Ви витягли неготові деталі із принтера.")
+            game_object.wait([None, 5])
+        elif self.status == 1:
+            print("Принтер порожній!")
+
+    def start(self, game_object):
+        """Implements the possibility to start works on printers"""
+        for part in self.parts:
+            if self.parts[part] <= 0:
+                print("Принтер зламаний!")
+                return
+        if self.status != 1:
+            print("Принтер не порожній, потрібно спершу вийняти деталі!")
+            return
+        print("Виберіть, яку роботу ви хочете тут запустити: ")
+        for work in Printer.works:
+            print(" " + str(work) + " - " + Printer.works[work][2] + " - " + str(Printer.works[work][1]) + " штук.")
+        try:
+            answer = int(input(">> "))
+            if answer in range(1, 13):
+                self.work = answer
+                self.work_progress = 0
+                self.status = 3
+                game_object.wait([None, 5])
+            else:
+                raise TypeError
+        except (ValueError, TypeError):
+            print("Введіть прийнятну відповідь!")
+
+    def repair(self, game_object, ):
+        if self.status in (2, 4):
+            print("Принтер непорожній, спочатку вийміть з нього вироби!")
+            return
+        if self.status == 3:
+            print("Принтер працює, ви не можете ремонтувати його зараз!")
+            return
+        if self.status == 1:
+            print(self.parts_status())
+            while True:
+                print("Чим ви бажаєте ремонтувати принтер?")
+                for count, item in enumerate(game_object.backpack):
+                    print(" " + str(count) + " - " + item.name)
+                try:
+                    answer = int(input(">> "))
+                    if answer in range(1, len(game_object.backpack)+1):
+                        pass
+                        #game_object.wait([None, 5])
+                    else:
+                        raise TypeError
+                except (ValueError, TypeError):
+                    print("Введіть прийнятну відповідь!")
+
 
 
 class Item(SetDescrMixin):
@@ -471,13 +593,15 @@ class GameGenerator:
 
 class GameCycle:
     """Class with functions usable for game cycle"""
-    def __init__(self, current_room, rooms_list, printers_list, backpack):
+    def __init__(self, current_room, rooms_list, printers_list, backpack, game_length):
         """Initialisation function"""
         self.current_room = current_room
         self.backpack = backpack
         self.rooms_list = rooms_list
         self.printers_list = printers_list
+        self.game_length = game_length
         self.time = 0
+        self.results = {"великі": 0, "середні": 0, "малі": 0}
 
     def get_answer(self):
         """Gets an answer from the player"""
@@ -508,7 +632,7 @@ class GameCycle:
         """Adds ability to talk with characters"""
         if len(answer) == 1:
             if len(self.current_room.get_characters()) == 1:
-                self.current_room.get_characters()[0].talk()
+                self.current_room.get_characters()[0].interact(self)
             elif len(self.current_room.get_characters()) == 0:
                 print("Тут немає персонажів!")
             else:
@@ -516,7 +640,7 @@ class GameCycle:
         elif len(answer) == 2:
             for character in self.current_room.get_characters():
                 if answer[1] == character.name:
-                    character.talk()
+                    character.interact(self)
                     return
             print("Тут немає такого персонажа!")
         else:
@@ -588,6 +712,8 @@ class GameCycle:
     def action_menu(self):
         """Implements action choice menu"""
         print("\n")
+        print("Пройшло: " + str(self.time) + "хвилин.")
+        print("До кінця зміни залишилося " + str(self.game_length - self.time) + " хвилин.")
         self.current_room.get_details()
 
         inhabitants = self.current_room.get_characters()
@@ -611,6 +737,8 @@ class GameCycle:
     def cycle(self, time):
         """Implements time and changes it brings in the game"""
         for time_count in range(time):
+            if self.time >= self.game_length:
+                raise GameEnd
             for room in self.rooms_list:
                 for printer in room.get_characters():
                     printer.cycle_work_effects()

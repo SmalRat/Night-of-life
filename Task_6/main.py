@@ -50,11 +50,8 @@ if __name__ == "__main__":
     game_cycle = game.GameCycle(game_generator.current_room,
                                 game_generator.rooms,
                                 game_generator.printers,
-                                [])
-    print("-" * 100)
-    for room in game_generator.rooms:
-        for printer in room.get_characters():
-            print(printer.work)
+                                [],
+                                game_length_dictionary[game_length])
     while game_cycle.time < game_length_dictionary[game_length]:
         try:
             game_cycle.action_menu()
