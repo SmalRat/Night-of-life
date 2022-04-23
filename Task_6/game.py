@@ -16,15 +16,30 @@ class SetDescrMixin:
         self.description = description
 
 
+class UsableItemMixin:
+    def use(self, printer, game_object):
+        if hasattr(self, "amount"):
+            if self.amount > 0:
+                self.amount -= self.usage_rate
+            else:
+                print("Цей предмет скінчився!")
+                return
+        for parameter in self.parameters:
+            printer.parts[parameter] = min(1, printer.parts[parameter]
+                                           + self.parameters[parameter])
+        print("Ви застосували предмет {} для ремонту".format(self.name))
+        game_object.wait([None, self.usage_time])
+
+
 class Room(SetDescrMixin):
     """Room object model"""
-    pairs = {"north": "south", "west": "east", "south": "north", "east": "west"}
+    pairs = {"північ": "південь", "захід": "схід", "південь": "північ", "схід": "захід"}
 
     def __init__(self, name):
         """Initialisation function"""
         self.name = name
-        self.description = "No description yet."
-        self.neighbours = {"north": None, "west": None, "south": None, "east": None}
+        self.description = "Немає опису."
+        self.neighbours = {"північ": None, "захід": None, "південь": None, "схід": None}
         self.characters = None
         self.items = None
 
@@ -62,10 +77,10 @@ class Room(SetDescrMixin):
     def get_details(self):
         """Gets details of the current room"""
         print("-" * 100)
-        print("You're currently at: " + str(self.name) + ". " + self.description + "\n")
-        print("Adjoining rooms: " + ", ".join(("{}: {}".format(key, self.neighbours[key].name)
+        print("Ви зараз в: " + str(self.name) + ". " + self.description + "\n")
+        print("Сусідні кімнати: " + ", ".join(("{}: {}".format(key, self.neighbours[key].name)
                                                if self.neighbours[key]
-                                               else "{}: No room".format(key)
+                                               else "{}: Нема кімнати".format(key)
                                                for key in self.neighbours)) + "\n")
         print("-"*100)
 
@@ -101,7 +116,7 @@ class Character:
 
     def describe(self):
         """Returns the description of the character"""
-        print("You see {} here. ".format(self.name) + self.description + "." + "\n")
+        print("Ви бачите {} тут. ".format(self.name) + self.description + "." + "\n")
 
     def talk(self):
         """Returns the replica of the character"""
@@ -155,7 +170,8 @@ class Printer(Enemy):
                    3: "Екструдер",
                    4: "Сопло",
                    5: "Ремінь",
-                   6: "Подача пластику"}
+                   6: "Подача пластику",
+                   7: "Філамент"}
     temper_names = {1: "Капризний", 2: "Жорстокий", 3: "Впертий", 4: "Мазохіст", 5: "Файний"}
     temper_descriptions = {1: "часто потребує перекалібровки",
                            2: "при знятті деталей завжди пошкоджує поверхню",
@@ -187,11 +203,11 @@ class Printer(Enemy):
     def __init__(self, name):
         """Initialisation function"""
         self.name = name
-        self.description = "Принтер"
-        self.parts = {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1}
+        self.description = "3D принтер, друкує деталі..."
+        self.parts = {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1}
         for key in self.parts:
             self.parts[key] -= random.random()/2
-        self.filament = 1 - random.random()/2
+        #self.filament = 1 - random.random()/2
         self.temper = 1
         self.define_temper()
         self.set_conversation("Цей принтер " + Printer.temper_names[self.temper]
@@ -328,7 +344,9 @@ class Printer(Enemy):
             return
         print("Виберіть, яку роботу ви хочете тут запустити: ")
         for work in Printer.works:
-            print(" " + str(work) + " - " + Printer.works[work][2] + " - " + str(Printer.works[work][1]) + " штук.")
+            print(" " + str(work) + " - " + Printer.works[work][2] + " - " +
+                  str(Printer.works[work][1]) + " штук. Час виконання: " +
+                  str(Printer.works[work][0]) + " хвилин.")
         try:
             answer = int(input(">> "))
             if answer in range(1, 13):
@@ -352,18 +370,30 @@ class Printer(Enemy):
             print(self.parts_status())
             while True:
                 print("Чим ви бажаєте ремонтувати принтер?")
+                print(" 0 - Не бажаю ремонтувати принтер.")
                 for count, item in enumerate(game_object.backpack):
-                    print(" " + str(count) + " - " + item.name)
+                    print(" " + str(count + 1) + " - " + item.name)
                 try:
                     answer = int(input(">> "))
                     if answer in range(1, len(game_object.backpack)+1):
-                        pass
-                        #game_object.wait([None, 5])
+                        item = game_object.backpack[answer-1]
+                        if isinstance(item, Belt):
+                            check = 0
+                            for i in game_object.backpack:
+                                if isinstance(i, Screwdriver):
+                                    check = 1
+                            if check == 1:
+                                item.use(self, game_object)
+                            else:
+                                print("Вам потрібна викрутка в інвентарі!")
+                        else:
+                            item.use(self, game_object)
+                    elif answer == 0:
+                        return
                     else:
                         raise TypeError
                 except (ValueError, TypeError):
                     print("Введіть прийнятну відповідь!")
-
 
 
 class Item(SetDescrMixin):
@@ -371,7 +401,7 @@ class Item(SetDescrMixin):
     def __init__(self, name):
         """Initialisation method"""
         self.name = name
-        self.description = "No description yet."
+        self.description = "Поки немає опису."
 
     def describe(self):
         """Returns the description of the item"""
@@ -382,7 +412,7 @@ class Item(SetDescrMixin):
         return self.name
 
 
-class Rod(Item):
+class Rod(Item, UsableItemMixin):
     """Rod object model"""
     generation_amount = 0.75
 
@@ -391,9 +421,10 @@ class Rod(Item):
         super().__init__("Стержень")
         self.description = "Використовується для чищення забитого екструдеру"
         self.usage_time = 5
+        self.parameters = {1: 0, 2: 0, 3: 0.6, 4: 0.2, 5: 0, 6: 0.2}
 
 
-class Screwdriver(Item):
+class Screwdriver(Item, UsableItemMixin):
     """Screwdriver object model"""
     generation_amount = 0.50
 
@@ -402,9 +433,10 @@ class Screwdriver(Item):
         super().__init__("Викрутка")
         self.description = "Використовується для заміни ременя або ремонту системи подачі пластику"
         self.usage_time = 10
+        self.parameters = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0.5}
 
 
-class Nozzle(Item):
+class Nozzle(Item, UsableItemMixin):
     """Nozzle object model"""
     generation_amount = 0.30
 
@@ -413,9 +445,12 @@ class Nozzle(Item):
         super().__init__("Сопло")
         self.description = "Нове сопло"
         self.usage_time = 10
+        self.amount = 1
+        self.usage_rate = 1
+        self.parameters = {1: 0, 2: 0, 3: 0, 4: 1, 5: 0, 6: 0}
 
 
-class Extruder(Item):
+class Extruder(Item, UsableItemMixin):
     """Extruder object model"""
     generation_amount = 0.20
 
@@ -424,9 +459,12 @@ class Extruder(Item):
         super().__init__("Екструдер")
         self.description = "Справний екструдер"
         self.usage_time = 4
+        self.amount = 1
+        self.usage_rate = 1
+        self.parameters = {1: 0, 2: 0, 3: 1, 4: 1, 5: 0, 6: 0}
 
 
-class Belt(Item):
+class Belt(Item, UsableItemMixin):
     """Belt object model"""
     generation_amount = 0.20
 
@@ -435,6 +473,9 @@ class Belt(Item):
         super().__init__("Ремінь")
         self.description = "Справний привідний ремінь"
         self.usage_time = 10
+        self.amount = 1
+        self.usage_rate = 1
+        self.parameters = {1: 0, 2: 0, 3: 0, 4: 0, 5: 1, 6: 0}
 
 
 class ConsumableMixin:
@@ -443,7 +484,7 @@ class ConsumableMixin:
         print(self.name + ": " + self.description + ". " + "Стан: " + str(self.amount*100) + "%.")
 
 
-class DuctTape(Item, ConsumableMixin):
+class DuctTape(Item, ConsumableMixin, UsableItemMixin):
     """Duct_tape object model"""
     generation_amount = 1.5
 
@@ -453,9 +494,11 @@ class DuctTape(Item, ConsumableMixin):
         self.amount = 1
         self.description = "Використовується для відновлення цілісності покриття платформи"
         self.usage_time = 4
+        self.usage_rate = 0.1
+        self.parameters = {1: 1, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0}
 
 
-class Paper(Item, ConsumableMixin):
+class Paper(Item, ConsumableMixin, UsableItemMixin):
     """Paper object model"""
     generation_amount = 1
 
@@ -463,11 +506,13 @@ class Paper(Item, ConsumableMixin):
         """Initialisation function"""
         super().__init__("Папір А4")
         self.amount = 1
+        self.usage_rate = 0.05
         self.description = "Використовується для калібровки"
         self.usage_time = 7
+        self.parameters = {1: 0, 2: 0.8, 3: 0, 4: 0, 5: 0, 6: 0}
 
 
-class Glue(Item, ConsumableMixin):
+class Glue(Item, ConsumableMixin, UsableItemMixin):
     """Glue object model"""
     generation_amount = 1
 
@@ -477,9 +522,11 @@ class Glue(Item, ConsumableMixin):
         self.amount = 1
         self.description = "Використовується для ремонту системи подачі пластику"
         self.usage_time = 10
+        self.usage_rate = 0.2
+        self.parameters = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0.5}
 
 
-class FilamentABS(Item, ConsumableMixin):
+class FilamentABS(Item, ConsumableMixin, UsableItemMixin):
     """ABS filament object model"""
     generation_amount = 2
 
@@ -489,9 +536,11 @@ class FilamentABS(Item, ConsumableMixin):
         self.amount = 1
         self.description = "Використовується для заміни пластику ABS"
         self.usage_time = 5
+        self.usage_rate = 1
+        self.parameters = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 1}
 
 
-class FilamentPLA(Item, ConsumableMixin):
+class FilamentPLA(Item, ConsumableMixin, UsableItemMixin):
     """PLA filament object model"""
     generation_amount = 3
 
@@ -501,9 +550,11 @@ class FilamentPLA(Item, ConsumableMixin):
         self.amount = 1
         self.description = "Використовується для заміни пластику PLA"
         self.usage_time = 5
+        self.usage_rate = 1
+        self.parameters = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 1}
 
 
-class FilamentPETG(Item, ConsumableMixin):
+class FilamentPETG(Item, ConsumableMixin, UsableItemMixin):
     """PETG filament object model"""
     generation_amount = 1
 
@@ -513,6 +564,8 @@ class FilamentPETG(Item, ConsumableMixin):
         self.amount = 1
         self.description = "Використовується для заміни пластику PETG"
         self.usage_time = 5
+        self.parameters = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 1}
+        self.usage_rate = 1
 
 
 class GameGenerator:
@@ -550,7 +603,7 @@ class GameGenerator:
             if not room in linked_rooms:
                 while True:
                     linking_room = random.choice(linked_rooms)
-                    linking_side = random.choice(("west", "east", "north", "south"))
+                    linking_side = random.choice(("захід", "схід", "північ", "південь"))
                     if not linking_room.neighbours[linking_side]:
                         room.link_room(linking_room, Room.pairs[linking_side])
                         linked_rooms.append(room)
@@ -572,6 +625,7 @@ class GameGenerator:
             name = str(random.randint(1, 99))
             if name not in [printer.name for printer in self.printers]:
                 printer = Printer(name)
+                self.printers.append(printer)
                 return printer
             else:
                 pass
@@ -605,18 +659,20 @@ class GameCycle:
 
     def get_answer(self):
         """Gets an answer from the player"""
+        print("\nЩо ти хочеш зробити?")
+        info = " Перейти в іншу кімнату: 'північ', 'південь', 'схід', 'захід' \n " +\
+        "1 - Взаємодіяти з чимось \n 2 - Взяти предмет \n 3 - Чекати "
+        print(info)
         raw_answer = input(">> ")
         answer = raw_answer.split()
         if len(answer) > 0:
-            if answer[0] in ("north", "south", "east", "west"):
+            if answer[0] in ("північ", "південь", "схід", "захід"):
                 return self.move, answer[0]
-            elif answer[0] == "talk":
+            elif answer[0] == "1":
                 return self.talk, answer
-            elif answer[0] == "fight":
-                return self.fight, answer
-            elif answer[0] == "take":
+            elif answer[0] == "2":
                 return self.take, answer
-            elif answer[0] == "wait":
+            elif answer[0] == "3":
                 return self.wait, answer
             else:
                 print("Я не знаю, що означає: " + raw_answer + ".")
@@ -636,7 +692,7 @@ class GameCycle:
             elif len(self.current_room.get_characters()) == 0:
                 print("Тут немає персонажів!")
             else:
-                print("Оберіть конкретного персонажа, з яким будете говорити: talk <персонаж>")
+                print("Оберіть конкретного персонажа, з яким будете взаємодіяти: 1 <персонаж>.")
         elif len(answer) == 2:
             for character in self.current_room.get_characters():
                 if answer[1] == character.name:
@@ -646,7 +702,7 @@ class GameCycle:
         else:
             print("Неправильний формат відповіді!")
 
-    def fight(self, answer):
+    '''def fight(self, answer):
         """Implements 'fight'"""
         def fight_additional(inhabitant):
             print("Чим ви будете битися?")
@@ -685,7 +741,7 @@ class GameCycle:
                     return
             print("Тут немає такого персонажа!")
         else:
-            print("Неправильний формат відповіді!")
+            print("Неправильний формат відповіді!")'''
 
     def take(self, answer):
         """Implements ability to take items"""
@@ -693,7 +749,7 @@ class GameCycle:
         if items is not None:
             for item in items:
                 print("Ви поклали " + item.get_name() + " в сумку.")
-                self.backpack.append(item.get_name())
+                self.backpack.append(item)
             self.current_room.set_item(None)
         else:
             print("Тут немає ніяких предметів!")
@@ -707,7 +763,7 @@ class GameCycle:
         except (TypeError, ValueError):
             print("Введіть коректне значення (час у хвилинах, ціле значення).")
         except IndexError:
-            print("Введіть час у хвилинах, протягом якого чекати.")
+            print("Введіть час у хвилинах, протягом якого чекати : 3 <ціле число>.")
 
     def action_menu(self):
         """Implements action choice menu"""

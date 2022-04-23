@@ -56,4 +56,10 @@ if __name__ == "__main__":
         try:
             game_cycle.action_menu()
         except game.GameEnd:
-            break
+            print("Час вийшов!")
+            print("Ваші результати : \n " + "\n ".join(["{} деталі : {} штук".\
+                format(result, game_cycle.results[result]) for result in game_cycle.results]))
+            print("Ваш рахунок: (тут мало б щось обчислюватись за цікавою формулою, але " +
+                  "автор зловив дизмораль по написанню гри, яка вже по суті не потрібна " +
+                  "і тепер йому лінь це дописувати)")
+
